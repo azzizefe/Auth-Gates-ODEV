@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ RBAC Control & Escalation Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050508;
+            --panel: #0d0d14;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --error: #ef4444;
+            --border: #1e1e2d;
+            --text: #e2e8f0;
+            --text-dim: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            padding: 30px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .logo { font-weight: 900; font-size: 24px; letter-spacing: -1px; text-transform: uppercase; }
+        .logo span { color: var(--accent); }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            grid-gap: 30px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 25px;
+            overflow: hidden;
+        }
+
+        h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 20px; }
+
+        /* Auth Form */
+        .auth-item { margin-bottom: 20px; }
+        label { display: block; font-size: 11px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 700; }
+        input, select {
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 15px;
+            color: #fff;
+            font-family: inherit;
+            outline: none;
+        }
+        input:focus { border-color: var(--accent); }
+
+        button {
+            width: 100%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button.test-btn { width: auto; padding: 6px 12px; font-size: 10px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+        button.test-btn:hover { border-color: var(--accent); color: #fff; }
+
+        /* Matrix Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; font-size: 11px; color: var(--text-dim); padding: 15px; border-bottom: 1px solid var(--border); }
+        td { padding: 15px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .check { color: var(--success); font-weight: 900; }
+        .cross { color: var(--error); font-weight: 900; }
+
+        /* Console */
+        .console {
+            background: #000;
+            border-radius: 15px;
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+        .log { margin-bottom: 8px; border-left: 2px solid var(--border); padding-left: 10px; }
+        .log.info { border-color: var(--accent); color: var(--text); }
+        .log.success { border-color: var(--success); color: var(--success); }
+        .log.error { border-color: var(--error); color: var(--error); }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Matrix Overlay */
+        .matrix-container { position: relative; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo">RBAC <span>LAB</span></div>
+            <div id="sessionDisplay" class="session-info" style="display: none;">
+                <span id="sessionUser">NOT LOGGED IN</span>
+                <span id="sessionRole" class="badge">NONE</span>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- SIDEPAR: AUTH & CONTROL -->
+            <div class="space-y-6" style="display: flex; flex-direction: column; gap: 30px;">
+                <div class="card">
+                    <h3>IDENTITY ACCESS</h3>
+                    <div class="auth-item">
+                        <label>Identity Profile</label>
+                        <select id="userSelector">
+                            <option value="admin">ADMIN (admin123)</option>
+                            <option value="editor">EDITOR (edit123)</option>
+                            <option value="viewer">VIEWER (view123)</option>
+                            <option value="userA">USER A (Viewer)</option>
+                            <option value="userB">USER B (Viewer)</option>
+                        </select>
+                    </div>
+                    <button onclick="login()">Authenticate Session</button>
+                    <button onclick="logout()" class="test-btn" style="width: 100%; margin-top: 10px;">Clear Session</button>
+                </div>
+
+                <div class="card">
+                    <h3>AUDIT ENGINE</h3>
+                    <div id="logConsole" class="console">
+                        <div class="log info">System initialized. Waiting for session...</div>
+                    </div>
+                    <button onclick="clearConsole()" class="test-btn" style="width: 100%; margin-top: 15px;">Clear Logs</button>
+                </div>
+            </div>
+
+            <!-- MAIN: MATRIX & TESTING -->
+            <div class="space-y-6" style="display: flex; flex-direction: column; gap: 30px;">
+                <div class="card">
+                    <h3>PERMISSION MATRIX & LIVE TESTING</h3>
+                    <div class="matrix-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>OBJECT : ACTION</th>
+                                    <th>ADMIN</th>
+                                    <th>EDITOR</th>
+                                    <th>VIEWER</th>
+                                    <th>LIVE TEST</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrixBody">
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>PRIVILEGE ESCALATION LAB</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 15px;">Simulate Vertical & Horizontal attacks.</p>
+                            <button onclick="testEscalation('vertical')" class="secondary" style="background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid var(--error);">Run Vertical Attack</button>
+                        </div>
+                        <div>
+                            <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 15px;">Test cross-tenant data access leaks.</p>
+                            <button onclick="testEscalation('horizontal')" class="secondary" style="background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid var(--error);">Run Horizontal Attack</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let session = { token: null, role: null, username: null };
+
+        const matrix = [
+            { id: 'users:read', label: 'USERS : READ', roles: { Admin: true, Editor: false, Viewer: false }, path: '/api/users', method: 'GET' },
+            { id: 'users:write', label: 'USERS : WRITE', roles: { Admin: true, Editor: false, Viewer: false }, path: '/api/users', method: 'POST' },
+            { id: 'users:delete', label: 'USERS : DELETE', roles: { Admin: true, Editor: false, Viewer: false }, path: '/api/users/1', method: 'DELETE' },
+            { id: 'content:read', label: 'CONTENT : READ', roles: { Admin: true, Editor: true, Viewer: true }, path: '/api/content', method: 'GET' },
+            { id: 'content:write', label: 'CONTENT : WRITE', roles: { Admin: true, Editor: true, Viewer: false }, path: '/api/content', method: 'POST' },
+            { id: 'reports:read', label: 'REPORTS : READ', roles: { Admin: true, Editor: true, Viewer: false }, path: '/api/reports', method: 'GET' },
+            { id: 'reports:export', label: 'REPORTS : EXPORT', roles: { Admin: true, Editor: false, Viewer: false }, path: '/api/reports/export', method: 'GET' },
+            { id: 'settings:write', label: 'SETTINGS : WRITE', roles: { Admin: true, Editor: false, Viewer: false }, path: '/api/settings', method: 'POST' },
+        ];
+
+        function initMatrix() {
+            const body = document.getElementById('matrixBody');
+            matrix.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family: 'JetBrains Mono'; font-weight: 700;">${row.label}</td>
+                    <td>${renderIcon(row.roles.Admin)}</td>
+                    <td>${renderIcon(row.roles.Editor)}</td>
+                    <td>${renderIcon(row.roles.Viewer)}</td>
+                    <td><button class="test-btn" onclick="apiTest('${row.path}', '${row.method}', '${row.label}')">EXECUTE</button></td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function renderIcon(allowed) {
+            return allowed ? '<span class="check">✓</span>' : '<span class="cross">✗</span>';
+        }
+
+        async function login() {
+            const username = document.getElementById('userSelector').value;
+            const passwords = { admin: 'admin123', editor: 'edit123', viewer: 'view123', userA: 'userA123', userB: 'userB123' };
+            
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password: passwords[username] })
+                });
+                const data = await res.json();
+                
+                if (data.token) {
+                    session = data;
+                    document.getElementById('sessionDisplay').style.display = 'flex';
+                    document.getElementById('sessionUser').innerText = data.username.toUpperCase();
+                    document.getElementById('sessionRole').innerText = data.role.toUpperCase();
+                    log(`Authenticated as ${data.username} [${data.role}]`, 'success');
+                }
+            } catch (err) {
+                log('Authentication failed', 'error');
+            }
+        }
+
+        function logout() {
+            session = { token: null, role: null, username: null };
+            document.getElementById('sessionDisplay').style.display = 'none';
+            log('Session cleared', 'info');
+        }
+
+        async function apiTest(path, method, label) {
+            if (!session.token) return log('Error: No active session. Please authenticate.', 'error');
+
+            log(`Testing Access: ${label}...`, 'info');
+            try {
+                const res = await fetch(path, {
+                    method: method,
+                    headers: { 
+                        'Authorization': `Bearer ${session.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: method === 'POST' ? JSON.stringify({ title: 'Test', body: 'Demo' }) : undefined
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    log(`SUCCESS: [${res.status}] Access Granted to ${label}`, 'success');
+                } else {
+                    log(`REJECTED: [${res.status}] ${data.error}`, 'error');
+                }
+            } catch (err) {
+                log('Network error during test', 'error');
+            }
+        }
+
+        async function testEscalation(type) {
+            if (!session.token) return log('Login first to run escalation tests', 'error');
+
+            if (type === 'vertical') {
+                log('Simulating Vertical Escalation (Viewer -> Admin Action)...', 'info');
+                await apiTest('/api/users', 'GET', 'SENSITIVE_USER_LIST');
+                await apiTest('/api/settings', 'POST', 'CRITICAL_SYSTEM_SETTINGS');
+            } else {
+                log('Simulating Horizontal Escalation (Unauthorized Ownership Access)...', 'info');
+                // Assume default content seeded: Admin (1), UserA (2), UserB (3)
+                // If UserA is logged in, try to access UserB's content
+                log('Attempting to access resource ID 3 (Owned by different tenant)...', 'info');
+                await apiTest('/api/content/3', 'PUT', 'TENANT_B_DATA');
+            }
+        }
+
+        function log(msg, type) {
+            const console = document.getElementById('logConsole');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            console.prepend(div);
+        }
+
+        function clearConsole() {
+            document.getElementById('logConsole').innerHTML = '';
+        }
+
+        window.onload = initMatrix;
+    </script>
+</body>
+</html>

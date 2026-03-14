@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-03-14T18:48:58.237Z",
+  "totalTests": 7,
+  "results": [
+    {
+      "scenario": "VERTICAL",
+      "test": "Viewer accessing Admin User List",
+      "method": "GET",
+      "path": "/users",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "passed": true,
+      "responseTime": 4
+    },
+    {
+      "scenario": "VERTICAL",
+      "test": "Viewer accessing Settings",
+      "method": "POST",
+      "path": "/settings",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "passed": true,
+      "responseTime": 2
+    },
+    {
+      "scenario": "HORIZONTAL",
+      "test": "UserA accessing UserB Content (Put)",
+      "method": "PUT",
+      "path": "/content/3",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "passed": true,
+      "responseTime": 2
+    },
+    {
+      "scenario": "HORIZONTAL",
+      "test": "UserA deleting UserB Content",
+      "method": "DELETE",
+      "path": "/content/3",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "passed": true,
+      "responseTime": 1
+    },
+    {
+      "scenario": "TAMPERING",
+      "test": "Tampered Signature Access",
+      "method": "GET",
+      "path": "/content",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "passed": true,
+      "responseTime": 1
+    },
+    {
+      "scenario": "ADMIN_BYPASS",
+      "test": "Admin accessing everything",
+      "method": "GET",
+      "path": "/users",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "passed": true,
+      "responseTime": 2
+    },
+    {
+      "scenario": "ADMIN_BYPASS",
+      "test": "Admin overriding ownership",
+      "method": "PUT",
+      "path": "/content/3",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "passed": true,
+      "responseTime": 1
+    }
+  ]
+}

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 JWT Token Forge & Cache Battle Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --panel-bg: #111111;
+            --accent: #00ff88;
+            --purple: #7c3aed;
+            --teal: #2dd4bf;
+            --red: #ff4b4b;
+            --border: #1a1a2e;
+            --text: #e0e0e0;
+            --dim: #666666;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3 { font-weight: 800; text-transform: uppercase; letter-spacing: -1px; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        .header-title h1 { font-size: 24px; color: var(--accent); }
+        .header-title p { font-size: 10px; color: var(--dim); letter-spacing: 2px; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .panel:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(0, 255, 136, 0.05); }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
+        }
+        .panel-header h2 { font-size: 14px; color: var(--accent); letter-spacing: 2px; }
+
+        /* Form Controls */
+        label { display: block; font-size: 10px; color: var(--dim); text-transform: uppercase; margin-bottom: 8px; font-weight: 700; }
+        input, select, textarea {
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 12px;
+            font-family: inherit;
+            font-size: 13px;
+            margin-bottom: 15px;
+            outline: none;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+
+        /* Token Color Coding */
+        .token-display {
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .t-header { color: var(--red); }
+        .t-payload { color: var(--purple); }
+        .t-sig { color: var(--teal); }
+
+        /* Decode Info */
+        pre { background: #050505; padding: 10px; border-radius: 6px; font-size: 11px; color: #888; overflow-x: auto; margin-bottom: 10px; }
+        .syntax-key { color: var(--accent); }
+        .syntax-val { color: var(--teal); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            margin-left: 10px;
+        }
+        .status-valid { background: rgba(0, 255, 136, 0.1); color: var(--accent); }
+        .status-invalid { background: rgba(255, 75, 75, 0.1); color: var(--red); }
+
+        /* Benchmark Styles */
+        .bench-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .bench-card { background: #000; padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .bench-val { font-size: 24px; font-weight: 800; margin: 5px 0; }
+        .bench-label { font-size: 9px; color: var(--dim); }
+        .winner { color: var(--accent); border-color: var(--accent); }
+
+        /* Audit Styles */
+        .audit-item { background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        .audit-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .audit-name { font-size: 11px; font-weight: 700; }
+        .audit-badge { font-size: 9px; padding: 2px 6px; border-radius: 3px; }
+
+        .pass { background: rgba(0, 255, 136, 0.1); color: var(--accent); }
+        .fail { background: rgba(255, 75, 75, 0.1); color: var(--red); }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--accent);
+            color: #000;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 12px;
+            transform: translateY(100px);
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 1000;
+        }
+        .toast.show { transform: translateY(0); }
+
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>JWT <span style="color:white">LAB</span></h1>
+            <p>ADVANCED SECURITY & PERFORMANCE SUITE</p>
+        </div>
+        <div id="healthStat" style="font-size: 10px; color: var(--accent); text-align: right;">
+            SYSTEM ONLINE<br><span style="color:var(--dim)">VER 1.0.0</span>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <!-- PANEL 1: FORGE -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>TOKEN FORGE</h2>
+                <div id="tokenSize" style="font-size: 9px; color: var(--dim)">0 BYTES</div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Subject (User ID)</label>
+                    <input type="text" id="forgeSub" value="user_123">
+                </div>
+                <div>
+                    <label>Role</label>
+                    <select id="forgeRole">
+                        <option value="user">User</option>
+                        <option value="editor">Editor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Algorithm</label>
+                    <select id="forgeAlg">
+                        <option value="HS256">HS256</option>
+                        <option value="HS384">HS384</option>
+                        <option value="HS512">HS512</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Expiry</label>
+                    <select id="forgeExp">
+                        <option value="60s">60 Seconds</option>
+                        <option value="1h" selected>1 Hour</option>
+                        <option value="24h">24 Hours</option>
+                        <option value="never">Never</option>
+                    </select>
+                </div>
+            </div>
+
+            <label>Custom Claims (Key:Value)</label>
+            <input type="text" id="forgeClaims" placeholder="tier:premium, dept:it" value="tier:premium">
+
+            <button onclick="createToken()" style="width: 100%;">Forge Secure Token</button>
+
+            <div id="tokenOutput" class="token-display" style="display:none">
+                <span id="outH" class="t-header"></span>.<span id="outP" class="t-payload"></span>.<span id="outS" class="t-sig"></span>
+            </div>
+            <button id="copyBtn" onclick="copyToken()" class="secondary" style="width: 100%; margin-top: 10px; display:none">Copy to Clipboard</button>
+        </section>
+
+        <!-- PANEL 2: DECODER -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>LIVE DECODER</h2>
+                <div id="decodeStatus"></div>
+            </div>
+            
+            <label>Encoded JWT</label>
+            <textarea id="decodeInput" placeholder="Paste your token here..." rows="4"></textarea>
+
+            <label>Header</label>
+            <pre id="decodeHeader">{}</pre>
+
+            <label>Payload</label>
+            <pre id="decodePayload">{}</pre>
+
+            <div id="expiryTimer" style="font-size: 10px; color: var(--accent); margin-top: 5px;"></div>
+        </section>
+
+        <!-- PANEL 3: BATTLE -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>BATTLE BENCH</h2>
+                <button onclick="runBenchmark()" class="secondary" style="padding: 5px 15px; font-size: 10px;">Run Race</button>
+            </div>
+
+            <div class="bench-grid">
+                <div id="dbCard" class="bench-card">
+                    <div class="bench-label">DATABASE (SQLITE)</div>
+                    <div id="dbAvg" class="bench-val">0.000</div>
+                    <div class="bench-label">AVG LATENCY (MS)</div>
+                </div>
+                <div id="cacheCard" class="bench-card">
+                    <div class="bench-label">CACHE (NODE-CACHE)</div>
+                    <div id="cacheAvg" class="bench-val">0.000</div>
+                    <div class="bench-label">AVG LATENCY (MS)</div>
+                </div>
+            </div>
+
+            <div style="height: 180px; position: relative;">
+                <canvas id="benchChart"></canvas>
+            </div>
+
+            <div id="winnerAnnounce" style="text-align: center; margin-top: 20px; font-weight: 800; color: var(--accent); font-size: 12px;"></div>
+        </section>
+
+        <!-- PANEL 4: AUDIT -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>SECURITY AUDIT</h2>
+                <div id="auditScore" style="color: var(--accent); font-weight: 800;">SCR: 0/100</div>
+            </div>
+
+            <div id="auditList" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                <div class="audit-item" style="text-align: center; color: var(--dim); padding: 40px 0;">
+                    INPUT TOKEN TO START AUDIT
+                </div>
+            </div>
+
+            <button onclick="downloadReport()" id="reportBtn" class="secondary" style="width: 100%; margin-top: 15px; display:none">Download Report</button>
+        </section>
+    </div>
+
+    <div id="toast" class="toast">COPIED TO CLIPBOARD</div>
+
+    <script>
+        let currentToken = '';
+        let benchChart = null;
+
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('benchChart').getContext('2d');
+            benchChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['DB', 'CACHE'],
+                    datasets: [{
+                        label: 'Avg Latency (ms)',
+                        data: [0, 0],
+                        backgroundColor: ['#ff4b4b22', '#00ff8822'],
+                        borderColor: ['#ff4b4b', '#00ff88'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#ffffff05' }, ticks: { color: '#666' } },
+                        x: { grid: { display: false }, ticks: { color: '#666' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function createToken() {
+            const claimsStr = document.getElementById('forgeClaims').value;
+            const customClaims = {};
+            claimsStr.split(',').forEach(p => {
+                const [k, v] = p.split(':');
+                if (k && v) customClaims[k.trim()] = v.trim();
+            });
+
+            const res = await fetch('/api/token/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sub: document.getElementById('forgeSub').value,
+                    role: document.getElementById('forgeRole').value,
+                    expiresIn: document.getElementById('forgeExp').value,
+                    algorithm: document.getElementById('forgeAlg').value,
+                    customClaims
+                })
+            });
+
+            const data = await res.json();
+            currentToken = data.token;
+            
+            const [h, p, s] = data.token.split('.');
+            document.getElementById('outH').innerText = h;
+            document.getElementById('outP').innerText = p;
+            document.getElementById('outS').innerText = s;
+            document.getElementById('tokenOutput').style.display = 'block';
+            document.getElementById('copyBtn').style.display = 'block';
+            document.getElementById('tokenSize').innerText = data.metadata.size + ' BYTES';
+
+            // Auto-fill decoder
+            document.getElementById('decodeInput').value = data.token;
+            decodeToken();
+            runAudit();
+        }
+
+        async function decodeToken() {
+            const token = document.getElementById('decodeInput').value;
+            if (!token) return;
+
+            const res = await fetch('/api/token/decode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                document.getElementById('decodeStatus').innerHTML = '<span class="status-badge status-invalid">❌ INVALID</span>';
+                return;
+            }
+
+            document.getElementById('decodeHeader').innerHTML = syntaxHighlight(data.header);
+            document.getElementById('decodePayload').innerHTML = syntaxHighlight(data.payload);
+            
+            const badge = data.isExpired ? '⚠️ EXPIRED' : '✅ VALID';
+            const cls = data.isExpired ? 'status-invalid' : 'status-valid';
+            document.getElementById('decodeStatus').innerHTML = `<span class="status-badge ${cls}">${badge}</span>`;
+
+            if (data.timeLeft !== null) {
+                document.getElementById('expiryTimer').innerText = `Expiring in: ${data.timeLeft} seconds`;
+            } else {
+                document.getElementById('expiryTimer').innerText = 'Never Expires';
+            }
+        }
+
+        let auditData = null;
+        async function runAudit() {
+            const token = document.getElementById('decodeInput').value;
+            const res = await fetch('/api/security/audit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            auditData = await res.json();
+
+            const list = document.getElementById('auditList');
+            list.innerHTML = '';
+            auditData.tests.forEach(test => {
+                const item = document.createElement('div');
+                item.className = 'audit-item';
+                item.innerHTML = `
+                    <div class="audit-meta">
+                        <span class="audit-name">${test.name}</span>
+                        <span class="audit-badge ${test.passed ? 'pass' : 'fail'}">${test.passed ? 'PASS' : 'FAIL'}</span>
+                    </div>
+                    <div style="font-size: 9px; color: var(--dim)">${test.detail}</div>
+                `;
+                list.appendChild(item);
+            });
+
+            document.getElementById('auditScore').innerText = `SCR: ${auditData.score}/100`;
+            document.getElementById('reportBtn').style.display = 'block';
+        }
+
+        async function runBenchmark() {
+            const userId = 1;
+            const eventSource = new EventSource(`/api/benchmark/run?userId=${userId}&iterations=50`);
+            
+            document.getElementById('winnerAnnounce').innerText = 'RACING...';
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.done) {
+                    eventSource.close();
+                    document.getElementById('dbAvg').innerText = data.db.avg;
+                    document.getElementById('cacheAvg').innerText = data.cache.avg;
+                    document.getElementById('winnerAnnounce').innerText = `WINNER: CACHE (${data.speedup}x FASTER)`;
+                    
+                    benchChart.data.datasets[0].data = [data.db.avg, data.cache.avg];
+                    benchChart.update();
+
+                    document.getElementById('dbCard').classList.remove('winner');
+                    document.getElementById('cacheCard').classList.add('winner');
+                } else {
+                    document.getElementById('dbAvg').innerText = data.db.toFixed(3);
+                    document.getElementById('cacheAvg').innerText = data.cache.toFixed(3);
+                }
+            };
+        }
+
+        function syntaxHighlight(json) {
+            if (typeof json != 'string') {
+                json = JSON.stringify(json, undefined, 2);
+            }
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'syntax-val';
+                if (/:$/.test(match)) {
+                    cls = 'syntax-key';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function copyToken() {
+            navigator.clipboard.writeText(currentToken);
+            showToast('TOKEN COPIED');
+        }
+
+        function downloadReport() {
+            const blob = new Blob([JSON.stringify(auditData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit-report-${Date.now()}.json`;
+            a.click();
+            showToast('REPORT DOWNLOADED');
+        }
+
+        // Live stats fetch
+        async function fetchHealth() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                document.getElementById('healthStat').innerHTML = `SYSTEM ONLINE (${data.status.toUpperCase()})<br><span style="color:var(--dim)">HIT RATE: ${data.cacheHitRate} | KEYS: ${data.tokenCount}</span>`;
+            } catch(e) {}
+        }
+
+        // Event Listeners
+        document.getElementById('decodeInput').addEventListener('input', debounce(() => {
+            decodeToken();
+            runAudit();
+        }, 300));
+
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, arguments), wait);
+            };
+        }
+
+        window.onload = () => {
+            initChart();
+            fetchHealth();
+            setInterval(fetchHealth, 5000);
+        };
+    </script>
+</body>
+</html>
